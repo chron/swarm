@@ -1,4 +1,5 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { useEffect } from 'react';
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
 import { CLICKS_PER_PR, game } from '../game/engine';
 import { acceptsFlow, acceptsMods, emitsFlow, type NodeDef } from '../game/defs';
 import { fmt, pct } from '../game/format';
@@ -42,6 +43,8 @@ function bubbleFor(id: string): string | null {
       if (!hasIn) return 'zzz';
       return null;
     case 'booster':
+      if (id === 'you' && n.status === 'off') return 'Plug me into some agents!';
+      if (id === 'you' && s.focus < 0.15) return 'Mash keys to focus!';
       if (n.status === 'off') return 'Plug my ◆ in!';
       if (n.status === 'broke') return "Can't pay upkeep!";
       return null;
@@ -53,12 +56,16 @@ function bubbleFor(id: string): string | null {
 
 export function GameNode({ id, selected }: NodeProps) {
   useTick(100);
+  const updateInternals = useUpdateNodeInternals();
   const n = game.s.nodes[id];
-  if (!n) return null;
-  const d = game.def(n);
+  const d = n ? game.def(n) : null;
+  // You's jacks change when promoted
+  useEffect(() => updateInternals(id), [d?.type, id, updateInternals]);
+  if (!n || !d) return null;
+  const isYouBoost = id === 'you' && d.category === 'booster';
   const st = game.stats(id);
   const onFire = d.category === 'sink' && game.s.time - game.s.lastIncident < 2;
-  const animate = n.status === 'busy' || d.category === 'sink';
+  const animate = (isYouBoost ? game.s.focus > 0.05 : n.status === 'busy') || d.category === 'sink';
   const frame = spriteFrame(d.sprite, game.s.time + id.length * 0.37, animate);
   const bubble = bubbleFor(id);
 
@@ -77,8 +84,8 @@ export function GameNode({ id, selected }: NodeProps) {
         {game.canHire(id) && <span className="headcount">×{n.count}</span>}
       </div>
       <div
-        className={`gnode-stage ${d.manual ? 'clickable' : ''}`}
-        onClick={d.manual ? () => game.click(id) : undefined}
+        className={`gnode-stage ${d.manual || isYouBoost ? 'clickable' : ''}`}
+        onClick={d.manual || isYouBoost ? () => game.click(id) : undefined}
       >
         <Sprite id={d.sprite} scale={4} frame={frame} palette={onFire ? FIRE : undefined} className={d.sprite === 'ci' && animate ? 'spin' : ''} />
         {bubble && <div className={`bubble ${n.status === 'broke' || onFire ? 'bad' : ''}`}>{bubble}</div>}
@@ -95,6 +102,12 @@ export function GameNode({ id, selected }: NodeProps) {
           <div className="bar-fill" style={{ width: `${progress * 100}%` }} />
         </div>
       )}
+      {isYouBoost && (
+        <div className="bar focus" title="Focus: mash your keyboard to amplify your boost">
+          <div className="bar-fill" style={{ width: `${game.s.focus * 100}%` }} />
+          <span>FOCUS ×{(1 + 0.6 * game.s.focus).toFixed(1)}</span>
+        </div>
+      )}
 
       <div className="gnode-stats">
         {d.category === 'producer' && (
@@ -102,6 +115,11 @@ export function GameNode({ id, selected }: NodeProps) {
             <span>{d.manual ? `${d.loc} LOC / ${CLICKS_PER_PR} clicks` : `${fmt(st.locRate ?? 0)} LOC/s`}</span>
             <span title="Bugs per 100 LOC">🐞 {((st.density ?? 0) * 100).toFixed(1)}</span>
             {st.token ? <span title="Token cost per PR">💸 ${fmt(st.token)}</span> : null}
+            {game.debtSlow > 0.05 && (
+              <span className="debt-badge" title="Tech debt slows every producer and makes its code buggier">
+                🐌 -{Math.round(game.debtSlow * 100)}%
+              </span>
+            )}
           </>
         )}
         {d.category === 'reviewer' && (

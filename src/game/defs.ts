@@ -52,6 +52,26 @@ const defs: NodeDef[] = [
     flavor: 'Where code goes to make money. And, occasionally, to catch fire.',
   },
 
+  // ---- You, after promotion: a booster that mashing the keyboard amplifies
+  {
+    type: 'you_lead', name: 'You (Tech Lead)', category: 'booster', kind: 'human', sprite: 'you_lead', era: 4,
+    cost: 0, growth: 1, unique: true, fanout: 2, targetKinds: ['ai'], targetCats: ['producer', 'reviewer'],
+    effect: { speed: 1.4, bugs: 0.8 },
+    flavor: 'You no longer write code. You write very encouraging comments at agents. Mash keys to focus.',
+  },
+  {
+    type: 'you_staff', name: 'You (Staff Engineer)', category: 'booster', kind: 'human', sprite: 'you_staff', era: 5,
+    cost: 0, growth: 1, unique: true, fanout: 4, targetKinds: ['ai'], targetCats: ['producer', 'reviewer'],
+    effect: { speed: 1.6, bugs: 0.7 },
+    flavor: 'Your calendar is 90% meetings with robots. Mash keys to focus.',
+  },
+  {
+    type: 'you_dist', name: 'You (Distinguished Engineer)', category: 'booster', kind: 'human', sprite: 'you_dist', era: 6,
+    cost: 0, growth: 1, unique: true, fanout: 8, targetKinds: ['ai'], targetCats: ['producer', 'reviewer'],
+    effect: { speed: 2, bugs: 0.5, catch: 0.1 },
+    flavor: 'The Swarm calls you "the Original". It means it nicely. Probably. Mash keys to focus.',
+  },
+
   // ---- producers
   {
     type: 'junior', name: 'Junior Dev', category: 'producer', kind: 'human', sprite: 'junior', era: 1,
@@ -170,6 +190,8 @@ const defs: NodeDef[] = [
 
 export const DEFS: Record<string, NodeDef> = Object.fromEntries(defs.map((d) => [d.type, d]));
 export const DEF_LIST = defs;
+
+export const YOU_FORMS = ['you', 'you_lead', 'you_staff', 'you_dist'];
 
 export const ERAS = [
   { name: '', tag: '' },

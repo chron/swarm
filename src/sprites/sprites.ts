@@ -66,6 +66,24 @@ const senior = patch(HUMAN, {
   7: '.....BBMMBB.....',
   8: '......BBBB......',
 });
+const youLead = patch(HUMAN, {
+  3: '...PHSSSSSSH....',
+  4: '...PSSSSSSSS....',
+  5: '...PSEESSEES....',
+  6: '...PSSSSSSSS....',
+  7: '....PPSMMSS.....',
+});
+const youStaff = patch(HUMAN, {
+  1: '.....BBBBBB.....',
+  2: '....BBBBBBBB....',
+  5: '...GGGGGGGGGG...',
+});
+const youDist = patch(HUMAN, {
+  0: '.....Y.YY.Y.....',
+  1: '.....YYYYYY.....',
+  5: '....GGGSSGGG....',
+  8: '.....TTTTTT.....',
+});
 const pm = patch(HUMAN, {
   3: '...HHSSSSSSHH...',
   4: '...HSSSSSSSSH...',
@@ -379,6 +397,9 @@ const robot = (metal: string, screen: string, eye: string, extra: Record<string,
 
 export const SPRITES: Record<string, SpriteDef> = {
   you: { palette: human('#6b4226', '#3b82f6'), frames: typing(you), fps: 10 },
+  you_lead: { palette: human('#6b4226', '#7c3aed', { P: '#111827' }), frames: typing(youLead), fps: 12 },
+  you_staff: { palette: human('#6b4226', '#475569', { B: '#0ea5e9' }), frames: typing(youStaff), fps: 14 },
+  you_dist: { palette: human('#6b4226', '#111111', { Y: '#facc15' }), frames: typing(youDist), fps: 16 },
   junior: { palette: human('#f2d04b', '#22c55e', { C: '#ef4444' }), frames: typing(junior), fps: 8 },
   tenx: { palette: human('#1f1f1f', '#111827', { P: '#e11d48' }), frames: typing(tenx), fps: 14 },
   senior: {

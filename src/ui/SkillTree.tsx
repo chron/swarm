@@ -21,7 +21,8 @@ function visibility(sk: Skill): Vis {
   return 'hidden';
 }
 
-const ICON: Record<string, string> = { root: '★', velocity: '»', rigor: '✓', infra: '⚙', product: '$' };
+const ICON: Record<string, string> = { root: '★', velocity: '»', rigor: '✓', infra: '⚙', product: '$', you: '☺' };
+const YOU_SPRITE: Record<string, string> = { y1: 'you_lead', y2: 'you_staff', y3: 'you_dist' };
 
 function SkillNode({ data }: NodeProps) {
   useTick(200);
@@ -36,7 +37,7 @@ function SkillNode({ data }: NodeProps) {
     >
       <Handle type="target" position={Position.Top} className="skill-handle" isConnectable={false} />
       <div className="skill-badge">
-        {vis === 'hidden-ish' ? '?' : unlockDef ? <Sprite id={unlockDef.sprite} scale={2} /> : ICON[sk.branch]}
+        {vis === 'hidden-ish' ? '?' : unlockDef || YOU_SPRITE[sk.id] ? <Sprite id={unlockDef?.sprite ?? YOU_SPRITE[sk.id]} scale={2} /> : ICON[sk.branch]}
       </div>
       <div className="skill-name">{vis === 'hidden-ish' ? '???' : sk.name}</div>
       {vis === 'available' && <div className="skill-cost">{fmt(sk.cost)} 💡</div>}
@@ -109,6 +110,7 @@ function Tree({ onClose }: { onClose: () => void }) {
         <span className="br-rigor">✓ Rigor</span>
         <span className="br-infra">⚙ Infra</span>
         <span className="br-product">$ Product</span>
+        <span className="br-you">☺ You</span>
       </div>
       {hs && hv !== 'hidden-ish' && (
         <div className="tree-tooltip">

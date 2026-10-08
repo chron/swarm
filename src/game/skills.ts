@@ -1,4 +1,4 @@
-export type Branch = 'root' | 'velocity' | 'rigor' | 'infra' | 'product';
+export type Branch = 'root' | 'velocity' | 'rigor' | 'infra' | 'product' | 'you';
 type K = 'human' | 'ai' | 'tool';
 
 export interface Globals {
@@ -13,6 +13,7 @@ export interface Globals {
   token: number;
   debtImpact: number;
   clickPower: number;
+  youLevel: number;
   teamCap: Record<K, number>;
   unlocks: Set<string>;
   rsi: boolean;
@@ -59,6 +60,17 @@ export const SKILLS: Skill[] = [
     desc: 'The Swarm and Cloud Fleets start improving themselves. Exponentially. What could go wrong?',
     apply: (g) => { g.rsi = true; } },
 
+  // ---- You (up-left): the player character gets promoted into a booster
+  { id: 'y1', name: 'Tech Lead', branch: 'you', cost: 900, requires: ['v6'], x: -1.5, y: -3.6,
+    desc: 'You stop writing code and become a booster for up to 2 AI nodes: 1.4× speed, -20% bugs. Mash your keyboard to focus and amplify it.',
+    apply: (g) => { g.youLevel = Math.max(g.youLevel, 1); } },
+  { id: 'y2', name: 'Staff Engineer', branch: 'you', cost: 8000, requires: ['y1'], x: -2.5, y: -4.4,
+    desc: 'Promotion! You now boost up to 4 AI nodes: 1.6× speed, -30% bugs.',
+    apply: (g) => { g.youLevel = Math.max(g.youLevel, 2); } },
+  { id: 'y3', name: 'Distinguished Engineer', branch: 'you', cost: 60000, requires: ['y2'], x: -3.5, y: -5.2,
+    desc: 'You boost up to 8 AI nodes: 2× speed, -50% bugs, +10% catch. Nobody is sure what you do. Including you.',
+    apply: (g) => { g.youLevel = Math.max(g.youLevel, 3); } },
+
   // ---- Rigor (right)
   { id: 'r1', name: 'Linting', branch: 'rigor', cost: 11, requires: ['root'], x: 1, y: 0,
     desc: 'Unlocks the Linter: a fast, shallow reviewer.', unlock: 'linter' },
@@ -85,7 +97,7 @@ export const SKILLS: Skill[] = [
   { id: 'i1', name: 'Stack Overflow', branch: 'infra', cost: 8, requires: ['root'], x: -1, y: 0,
     desc: 'Unlocks Stack Overflow: humans code 2× faster, with 40% more bugs.', unlock: 'stackoverflow' },
   { id: 'i2', name: 'Refactor Fridays', branch: 'infra', cost: 25, requires: ['i1'], x: -1.8, y: -0.8,
-    desc: 'Tech debt slows you down half as much.', apply: (g) => { g.debtImpact = 0.25; } },
+    desc: 'Tech debt slows you down half as much.', apply: (g) => { g.debtImpact = 0.35; } },
   { id: 'i3', name: 'Feature Flags', branch: 'infra', cost: 92, requires: ['i1'], x: -2, y: 0.3,
     desc: 'Incidents cost 50% less. Just flip it off!', apply: (g) => { g.incidentCost *= 0.5; } },
   { id: 'i4', name: 'Cloud Credits', branch: 'infra', cost: 280, requires: ['i3'], x: -3.1, y: 0.1,
@@ -134,8 +146,9 @@ export function computeGlobals(owned: string[]): Globals {
     incidentInsight: 1,
     insight: 1,
     token: 1,
-    debtImpact: 0.5,
+    debtImpact: 0.7,
     clickPower: 1,
+    youLevel: 0,
     teamCap: { human: 8, ai: 10, tool: 10 },
     unlocks: new Set(BASE_UNLOCKS),
     rsi: false,

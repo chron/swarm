@@ -7,7 +7,7 @@ import { ERAS } from '../src/game/defs';
 const PRODUCERS = ['swarm', 'cloud', 'agent', 'chatbot', 'tenx', 'junior'];
 const REVIEWERS = ['review_swarm', 'ai_reviewer', 'ci', 'tests', 'linter', 'senior'];
 const BOOSTERS = ['orchestrator', 'gpu', 'context', 'autocomplete', 'stackoverflow', 'coffee'];
-const SKILL_ORDER = ['v1', 'r1', 'p1', 'i1', 'p2', 'v3', 'v2', 'r2', 'p3', 'r3', 'i2', 'v4', 'i3', 'p4', 'r4', 'r5', 'v5', 'i4', 'v6', 'r6', 'i5', 'p6', 'i6', 'v7', 'r7', 'i7', 'p7', 'r8', 'v8', 'i8', 'p8', 'r9', 'v9'];
+const SKILL_ORDER = ['v1', 'r1', 'p1', 'i1', 'p2', 'v3', 'v2', 'r2', 'p3', 'r3', 'i2', 'v4', 'i3', 'p4', 'r4', 'r5', 'v5', 'i4', 'v6', 'y1', 'r6', 'i5', 'p6', 'i6', 'v7', 'y2', 'r7', 'i7', 'p7', 'r8', 'v8', 'y3', 'i8', 'p8', 'r9', 'v9'];
 
 const s = () => game.s;
 const nodesOf = (types: string[]) => Object.values(s().nodes).filter((n) => types.includes(n.type));
@@ -53,12 +53,16 @@ let t = 0;
 const DT = 0.1;
 while (t < 40 * 60 && !s().won) {
   // click for the first two minutes
-  if (t < 120 && Math.round(t * 10) % 2 === 0) game.click('you');
+  // type for the first two minutes; once promoted, mash in bursts to keep focus up
+  const mashing = game.g.youLevel > 0 && Math.floor(t / 20) % 2 === 0;
+  if ((t < 120 || mashing) && Math.round(t * 10) % 2 === 0) game.click('you');
+  // the YOLO run: rip out review once recursive self-improvement kicks in
+  if (process.env.YOLO && game.g.rsi) for (const sw of nodesOf(['swarm', 'cloud'])) game.connect({ source: sw.id, sourceHandle: 'out', target: 'prod', targetHandle: 'in' });
   game.tick(DT);
   t += DT;
   if (Math.round(t * 10) % 5 !== 0) continue;
 
-  for (const id of SKILL_ORDER) if (game.canBuySkill(id) && s().insight >= SKILLS.find((k) => k.id === id)!.cost && game.buySkill(id)) log.push(`${fmtT(t)}    skill ${id} (${SKILLS.find((k) => k.id === id)!.name})  $/s=${s().cashRate.toFixed(0)} 💡/s=${s().insightRate.toFixed(1)}`);
+  for (const id of SKILL_ORDER) if (game.canBuySkill(id) && s().insight >= SKILLS.find((k) => k.id === id)!.cost && game.buySkill(id) && (id.startsWith('y') ? boost('you') || true : true)) log.push(`${fmtT(t)}    skill ${id} (${SKILLS.find((k) => k.id === id)!.name})  $/s=${s().cashRate.toFixed(0)} 💡/s=${s().insightRate.toFixed(1)}`);
   if (s().era !== lastEra) {
     log.push(`${fmtT(t)}  ERA ${s().era} ${ERAS[s().era].name}`);
     lastEra = s().era;
@@ -88,4 +92,4 @@ console.log(`skills=${s().skills.length}/${SKILLS.length} incidents=${s().incide
 const counts: Record<string, number> = {};
 Object.values(s().nodes).forEach((n) => (counts[n.type] = (counts[n.type] ?? 0) + n.count));
 console.log(counts);
-console.log("final", s().final);
+console.log("final", s().final?.ending, 'debt', s().final?.debt.toFixed(2), 'you', s().final?.youLevel);

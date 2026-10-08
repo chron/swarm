@@ -1,4 +1,4 @@
-import { DEFS, ERAS, NodeDef, acceptsFlow, acceptsMods, emitsFlow } from './defs';
+import { DEFS, ERAS, YOU_FORMS, NodeDef, acceptsFlow, acceptsMods, emitsFlow } from './defs';
 import { SKILL_MAP, computeGlobals, Globals } from './skills';
 import { INCIDENT_QUIPS } from './flavor';
 
@@ -79,11 +79,17 @@ export interface State {
   won: boolean;
   wonTime: number;
   final: FinalStats | null; // frozen at the moment of winning
+  focus: number; // 0..1, charged by mashing once You are promoted
   nextId: number;
   flags: Record<string, boolean>;
 }
 
+export type Ending = 'yolo' | 'firefighter' | 'rigor' | 'balanced';
+
 export interface FinalStats {
+  ending: Ending;
+  debt: number;
+  youLevel: number;
   time: number;
   totalLoc: number;
   humanLoc: number;
@@ -111,6 +117,7 @@ export interface Floater {
 export type GameEvent =
   | { kind: 'incident'; bugs: number; cost: number; insight: number; text: string }
   | { kind: 'era'; era: number }
+  | { kind: 'promo'; level: number }
   | { kind: 'toast'; text: string }
   | { kind: 'win' };
 
@@ -155,6 +162,7 @@ function freshState(): State {
     won: false,
     wonTime: 0,
     final: null,
+    focus: 0,
     nextId: 1,
     flags: {},
   };
@@ -171,6 +179,7 @@ class Game {
   g: Globals = computeGlobals(this.s.skills);
   mods: Record<string, Mod> = {};
   timeScale = 1;
+  paused = false;
   events: GameEvent[] = [];
   floaters: Floater[] = [];
   private floaterId = 0;
@@ -237,7 +246,9 @@ class Game {
   // ---------- queries
 
   def(n: GNode | string): NodeDef {
-    return DEFS[typeof n === 'string' ? this.s.nodes[n]?.type ?? n : n.type];
+    const type = typeof n === 'string' ? this.s.nodes[n]?.type ?? n : n.type;
+    if (type === 'you') return DEFS[YOU_FORMS[this.g.youLevel]];
+    return DEFS[type];
   }
 
   count(type: string) {
@@ -306,7 +317,8 @@ class Game {
 
   private density(d: NodeDef, m: Mod) {
     const k = d.kind === 'none' ? 'tool' : d.kind;
-    return (d.density ?? 0) * this.g.bugs[k] * m.bugs;
+    // rushing on top of unreviewed code makes new code buggier too
+    return (d.density ?? 0) * this.g.bugs[k] * m.bugs * (1 + 0.6 * this.debt);
   }
 
   private catchRate(d: NodeDef, m: Mod) {
@@ -320,6 +332,11 @@ class Game {
     const n = this.s.nodes[id];
     if (!n) return;
     const d = this.def(n);
+    if (id === 'you' && d.category === 'booster') {
+      this.s.focus = Math.min(1, this.s.focus + 0.05 * this.g.clickPower);
+      n.lastActive = this.s.time;
+      return;
+    }
     if (!d.manual || n.held) return;
     const m = this.mods[id] ?? emptyMod();
     n.prog += this.g.clickPower * m.speed;
@@ -477,7 +494,15 @@ class Game {
     if (!this.canBuySkill(id) || this.s.insight < sk.cost) return false;
     this.s.insight -= sk.cost;
     this.s.skills.push(id);
+    const level = this.g.youLevel;
     this.g = computeGlobals(this.s.skills);
+    if (this.g.youLevel > level) {
+      // promoted: You stop shipping code and plug into agents instead
+      if (level === 0) this.s.edges = this.s.edges.filter((e) => e.source !== 'you');
+      const you = this.s.nodes.you;
+      if (you) you.held = null;
+      this.emit({ kind: 'promo', level: this.g.youLevel });
+    }
     let era = this.s.era;
     this.g.unlocks.forEach((t) => (era = Math.max(era, DEFS[t]?.era ?? 1)));
     if (era > this.s.era) {
@@ -527,8 +552,9 @@ class Game {
       if (e.kind !== 'mod' || !powered[e.source]) continue;
       const eff = this.def(e.source).effect ?? {};
       const m = (res[e.target] ??= emptyMod());
-      m.speed *= eff.speed ?? 1;
-      m.bugs *= eff.bugs ?? 1;
+      const focus = e.source === 'you' ? this.s.focus : 0; // mashing amplifies your boost
+      m.speed *= (eff.speed ?? 1) * (1 + 0.6 * focus);
+      m.bugs *= (eff.bugs ?? 1) * (1 - 0.3 * focus);
       m.catch += eff.catch ?? 0;
       m.value *= eff.value ?? 1;
       m.sources.push(e.source);
@@ -670,6 +696,15 @@ class Game {
     s.debtT *= decay;
 
     // incidents
+    s.focus = Math.max(0, s.focus - dt * 0.1);
+    if (!s.flags.debtWarned && this.debtSlow > 0.2) {
+      s.flags.debtWarned = true;
+      this.emit({
+        kind: 'toast',
+        text: `🐌 Tech debt! ${Math.round(this.debt * 100)}% of recent code skipped review, so every producer is ${Math.round(this.debtSlow * 100)}% slower and writes buggier code.`,
+      });
+    }
+
     s.incidentCd -= dt;
     if (s.backlog >= INCIDENT_THRESHOLD && s.incidentCd <= 0) this.incident();
 
@@ -695,7 +730,17 @@ class Game {
       s.won = true;
       s.wonTime = s.time;
       // count bugs still lurking in prod as shipped, too
+      const debt = this.debt;
+      const shipped = s.bugsShipped + s.backlog;
+      const ending: Ending =
+        debt >= 0.5 ? 'yolo'
+        : s.incidents >= 120 || shipped > s.bugsCaught ? 'firefighter'
+        : debt < 0.15 && s.bugsCaught >= 4 * shipped ? 'rigor'
+        : 'balanced';
       s.final = {
+        ending,
+        debt,
+        youLevel: this.g.youLevel,
         time: s.time,
         totalLoc: s.totalLoc,
         humanLoc: s.humanLoc,

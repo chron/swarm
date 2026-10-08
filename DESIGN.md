@@ -38,7 +38,8 @@ agents, servers that blink and catch fire.
 - **💡 Insight**: earned by catching bugs and from incident postmortems. Spent on the skill tree.
 - **Bugs that reach production** pile up and trigger **incidents**, which cost cash, give a little insight and
   come with a funny postmortem.
-- **Tech debt**: the share of recently shipped code that was never reviewed. It slows all producers.
+- **Tech debt**: the share of recently shipped code that was never reviewed. It slows every producer (up to -70%)
+  and makes new code buggier (up to +60%). Producers show a 🐌 badge, and the screen edge glows red when it bites.
 - **Hand-written %**: how much of everything shipped was written by humans. It's the quiet punchline.
 
 ## Eras (unlocked through the skill tree)
@@ -54,8 +55,21 @@ A classic sprawling web with four branches leading out from "Hello, World":
 **Velocity** (up), **Rigor** (right), **Product** (down), **Infra** (left).
 The final skill, *Recursive Self-Improvement*, makes the swarm accelerate exponentially.
 
-## Win
-Ship **1,000,000,000 LOC**. The end screen shows your stats, including how much of the code you wrote yourself.
+## You, later
+Typing matters for the first couple of minutes. After that, the **You** skill branch promotes you to Tech Lead,
+then Staff Engineer, then Distinguished Engineer. You become a booster for 2, 4, then 8 AI nodes. Mashing the keyboard
+now charges **Focus**, which amplifies your boost and decays over time.
+
+## Win & endings
+Ship **1,000,000,000 LOC**. The ending depends on how you got there, judged at the moment of winning:
+- **YOLO Merge**: tech debt ≥ 50% (you ripped the reviewers out and shipped straight to prod)
+- **This Is Fine**: 120+ incidents, or more bugs shipped than caught
+- **LGTM (Actually)**: tech debt under 15% and at least 4× more bugs caught than shipped
+- **Business As Usual**: everything else
+Bonus lines mention your final title and how much you typed by hand.
+
+## Screens
+Title screen (continue / new game), and Esc to pause (controls, restart, back to title).
 
 ## Tech
 Vite + React + TypeScript + @xyflow/react. The simulation is a plain TS engine with no React in it. React Flow only

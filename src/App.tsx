@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useRef, useState, type ReactNode } f
 import {
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
   Background,
   Controls,
   applyEdgeChanges,
@@ -18,6 +19,7 @@ import { ModEdge, PacketEdge } from './ui/Edges';
 import { Hud, Inspector, Tip, Toasts, Toolbox, newToast } from './ui/Panels';
 import { SkillTree } from './ui/SkillTree';
 import { EndScreen } from './ui/EndScreen';
+import { DebtVignette, PauseScreen, TitleScreen } from './ui/Screens';
 
 const nodeTypes = { game: GameNode };
 const edgeTypes = { packet: PacketEdge, mod: ModEdge };
@@ -51,6 +53,13 @@ function Board() {
   const [nodes, setNodes] = useState<Node[]>(() => toRfNodes([]));
   const [edges, setEdges] = useState<Edge[]>(() => toRfEdges([]));
   const [treeOpen, setTreeOpen] = useState(false);
+  const [onTitle, setOnTitle] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const rf = useReactFlow();
+
+  useEffect(() => {
+    game.paused = onTitle || paused;
+  }, [onTitle, paused]);
   const [ended, setEnded] = useState(false);
   const [toasts, setToasts] = useState<ReturnType<typeof newToast>[]>([]);
 
@@ -74,13 +83,17 @@ function Board() {
   // mash the keyboard to write code
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setTreeOpen(false);
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || treeOpen) return;
+      if (e.key === 'Escape' && !onTitle) {
+        if (treeOpen) setTreeOpen(false);
+        else setPaused((p) => !p);
+        return;
+      }
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || treeOpen || onTitle || paused) return;
       if (e.key.length === 1) game.click('you');
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [treeOpen]);
+  }, [treeOpen, onTitle, paused]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     for (const c of changes) if (c.type === 'position' && c.position) game.move(c.id, c.position.x, c.position.y);
@@ -156,15 +169,28 @@ function Board() {
       <Inspector id={selected} />
       <Tip />
       <Toasts extra={toasts} />
+      <DebtVignette />
       {treeOpen && <SkillTree onClose={() => setTreeOpen(false)} />}
+      {paused && (
+        <PauseScreen
+          onResume={() => setPaused(false)}
+          onTitle={() => {
+            setPaused(false);
+            setOnTitle(true);
+          }}
+        />
+      )}
+      {onTitle && (
+        <TitleScreen
+          onStart={() => {
+            setOnTitle(false);
+            setTimeout(() => rf.fitView({ padding: 0.3, maxZoom: 1, duration: 300 }), 50);
+          }}
+        />
+      )}
       {ended && <EndScreen onContinue={() => setEnded(false)} />}
-      <button
-        className="reset-btn"
-        onClick={() => {
-          if (confirm('Wipe your save and start over?')) game.reset();
-        }}
-      >
-        reset
+      <button className="reset-btn" onClick={() => setPaused(true)}>
+        ❚❚ pause (esc)
       </button>
     </div>
   );

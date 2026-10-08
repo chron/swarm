@@ -10,7 +10,7 @@ if (speed > 0) game.timeScale = speed;
 
 let last = performance.now();
 const loop = (now: number) => {
-  game.tick((now - last) / 1000);
+  if (!game.paused) game.tick((now - last) / 1000);
   last = now;
   requestAnimationFrame(loop);
 };

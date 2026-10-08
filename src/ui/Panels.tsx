@@ -35,7 +35,14 @@ export function Hud({ onTree }: { onTree: () => void }) {
           <span className="goal-text">goal: 1B LOC</span>
         </div>
       </div>
-      <Meter label="Tech debt" value={debt} title={`${pct(debt)} of recent code shipped unreviewed → producers ${pct(game.debtSlow)} slower`} bad />
+      <Meter
+        label="Tech debt"
+        value={debt}
+        title={`${pct(debt)} of recent code shipped unreviewed → producers ${pct(game.debtSlow)} slower and buggier`}
+        text={game.debtSlow > 0.01 ? `🐌 producers -${pct(game.debtSlow)}` : 'all clear'}
+        warn={game.debtSlow > 0.15}
+        bad
+      />
       <Meter label="Hand-written" value={human} title="Share of all shipped code written by humans" />
       <button className={`btn tree-btn ${affordable ? 'glow' : ''}`} onClick={onTree}>
         Skill Tree{affordable ? <span className="badge">{affordable}</span> : null}
@@ -56,7 +63,17 @@ function Stat({ icon, label, value, rate, cls }: { icon: string; label: string; 
   );
 }
 
-function Meter({ label, value, title, bad }: { label: string; value: number; title: string; bad?: boolean }) {
+function Meter({ label, value, title, bad, text, warn }: { label: string; value: number; title: string; bad?: boolean; text?: string; warn?: boolean }) {
+  if (text)
+    return (
+      <div className={`hud-meter ${warn ? 'warn' : ''}`} title={title}>
+        <div className="hud-stat-label">{label}</div>
+        <div className={`meter ${bad ? 'bad' : ''}`}>
+          <div className="meter-fill" style={{ width: `${Math.min(1, value) * 100}%` }} />
+        </div>
+        <div className="hud-stat-rate">{text}</div>
+      </div>
+    );
   return (
     <div className="hud-meter" title={title}>
       <div className="hud-stat-label">{label}</div>
@@ -230,6 +247,9 @@ function currentTip(): string | null {
     return d.category !== 'sink' && !s.edges.some((e) => e.source === n.id);
   });
   const producers = nodes.filter((n) => game.def(n).category === 'producer' && n.type !== 'you').length;
+  if (game.g.youLevel > 0 && !s.edges.some((e) => e.source === 'you'))
+    return "You've been promoted! Plug your ◆ jack into some AI nodes, then mash your keyboard to focus.";
+  if (game.g.youLevel > 0 && s.focus < 0.1 && s.time % 60 < 8) return 'Mash your keyboard: Focus amplifies your boost on the agents you lead.';
   if (s.totalLoc === 0) return 'Click on You (or just mash your keyboard) to write some code.';
   if (!producers && s.cash < 15) return 'Every PR that reaches Production earns cash. Keep typing!';
   if (!producers) return 'Buy a Junior Dev from the shop on the left. They write code on their own.';
@@ -265,12 +285,18 @@ let toastId = 0;
 export function Toasts({ extra }: { extra: Toast[] }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [era, setEra] = useState<number | null>(null);
+  const [promo, setPromo] = useState<number | null>(null);
   useEffect(
     () =>
       game.onEvent((e) => {
         if (e.kind === 'era') {
           setEra(e.era);
           setTimeout(() => setEra(null), 3500);
+          return;
+        }
+        if (e.kind === 'promo') {
+          setPromo(e.level);
+          setTimeout(() => setPromo(null), 3500);
           return;
         }
         if (e.kind === 'win') return;
@@ -294,7 +320,7 @@ export function Toasts({ extra }: { extra: Toast[] }) {
               </div>
             </div>
           ) : e.kind === 'toast' ? (
-            <div key={id} className="toast">
+            <div key={id} className={`toast ${e.text.startsWith('🐌') ? 'debt' : ''}`}>
               {e.text}
             </div>
           ) : null,
@@ -307,9 +333,23 @@ export function Toasts({ extra }: { extra: Toast[] }) {
           <div className="era-banner-tag">{ERAS[era].tag}</div>
         </div>
       )}
+      {promo !== null && (
+        <div className="era-banner promo" key={`p${promo}`}>
+          <div className="era-banner-small">PROMOTED</div>
+          <div className="era-banner-name">{PROMOS[promo][0]}</div>
+          <div className="era-banner-tag">{PROMOS[promo][1]}</div>
+        </div>
+      )}
     </>
   );
 }
+
+const PROMOS = [
+  ['', ''],
+  ['Tech Lead', 'You no longer write code. Plug yourself into some agents, then mash keys to focus.'],
+  ['Staff Engineer', 'You can now boost 4 AI nodes. Your calendar weeps.'],
+  ['Distinguished Engineer', 'You can now boost 8 AI nodes. Nobody knows what you do. It works.'],
+];
 
 export function newToast(text: string): Toast {
   return { id: toastId++, e: { kind: 'toast', text } };
