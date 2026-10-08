@@ -3,9 +3,12 @@
 A prototype incremental game about AI-driven development. You start by typing code by hand and end up running a swarm of autonomous cloud agents.
 Wire producers, reviewers and boosters into pipelines, and climb the skill tree. Ship a billion lines.
 
+**Play it at [swarm.prestidge.dev](https://swarm.prestidge.dev)**: about 15 minutes.
+
 ```sh
 npm install
 npm run dev          # http://localhost:5173
+npm run deploy       # build and deploy to Cloudflare Workers (needs wrangler login)
 ```
 
 - `?speed=10` in the URL runs the simulation faster, for playtesting.
@@ -13,4 +16,4 @@ npm run dev          # http://localhost:5173
 - See [DESIGN.md](DESIGN.md) for the design notes.
 
 Controls: click **You** (or mash your keyboard) to write code. Drag between jacks to connect nodes: ● carries code, ◆ carries booster effects.
-Select a node or cable and press Backspace to sell or unplug it. Double-click a cable to unplug it.
+Esc pauses. Select a node or cable and press Backspace to sell or unplug it. Double-click a cable to unplug it.
