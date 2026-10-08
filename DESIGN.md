@@ -38,7 +38,8 @@ agents, servers that blink and catch fire.
 - **💡 Insight**: earned by catching bugs and from incident postmortems. Spent on the skill tree.
 - **Bugs that reach production** pile up and trigger **incidents**, which cost cash, give a little insight and
   come with a funny postmortem.
-- **Tech debt**: the share of recently shipped code that was never reviewed. It slows every producer (up to -70%)
+- **Tech debt**: the share of recently shipped code that was never reviewed. It only starts counting once you own a
+  reviewer, and it eases in rather than jumping straight to 100%. It slows every producer (up to -70%)
   and makes new code buggier (up to +60%). Producers show a 🐌 badge, and the screen edge glows red when it bites.
 - **Hand-written %**: how much of everything shipped was written by humans. It's the quiet punchline.
 
@@ -67,6 +68,11 @@ Ship **1,000,000,000 LOC**. The ending depends on how you got there, judged at t
 - **LGTM (Actually)**: tech debt under 15% and at least 4× more bugs caught than shipped
 - **Business As Usual**: everything else
 Bonus lines mention your final title and how much you typed by hand.
+
+## Onboarding (progressive disclosure)
+The game starts with just You and Production. The shop slides in once you can afford a Junior Dev, with a small cash
+chip. The full HUD (and tech debt) drops in when you get your first reviewer, and the Skill Tree button pulses with a
+"NEW!" nudge for the first few skills. Hovering stat icons (🐞 🔍 💸 queue, HUD stats) shows a short reminder.
 
 ## Screens
 Title screen (continue / new game), and Esc to pause (controls, restart, back to title).

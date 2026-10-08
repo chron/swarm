@@ -20,6 +20,7 @@ import { Hud, Inspector, Tip, Toasts, Toolbox, newToast } from './ui/Panels';
 import { SkillTree } from './ui/SkillTree';
 import { EndScreen } from './ui/EndScreen';
 import { DebtVignette, PauseScreen, TitleScreen } from './ui/Screens';
+import { HintLayer } from './ui/Hints';
 
 const nodeTypes = { game: GameNode };
 const edgeTypes = { packet: PacketEdge, mod: ModEdge };
@@ -170,6 +171,7 @@ function Board() {
       <Tip />
       <Toasts extra={toasts} />
       <DebtVignette />
+      <HintLayer />
       {treeOpen && <SkillTree onClose={() => setTreeOpen(false)} />}
       {paused && (
         <PauseScreen

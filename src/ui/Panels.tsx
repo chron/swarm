@@ -7,6 +7,7 @@ import { fmt, money, pct } from '../game/format';
 import { Sprite } from '../sprites/Sprite';
 import { effectText, targetText } from './GameNode';
 import { useTick } from './hooks';
+import { HINT } from './Hints';
 
 // ------------------------------------------------------------------ HUD
 
@@ -14,18 +15,27 @@ export function Hud({ onTree }: { onTree: () => void }) {
   useTick(100);
   const s = game.s;
   const affordable = SKILLS.filter((k) => game.canBuySkill(k.id) && s.insight >= k.cost).length;
-  const progress = Math.log10(Math.max(1, s.totalLoc)) / Math.log10(GOAL_LOC);
+  // log-ish, but offset so the first few hundred lines don't fill a third of the bar
+  const progress = Math.log10(1 + s.totalLoc / 1e4) / Math.log10(1 + GOAL_LOC / 1e4);
   const human = s.totalLoc > 0 ? s.humanLoc / s.totalLoc : 1;
   const debt = game.debt;
+  if (!s.flags.uiHud)
+    return s.flags.uiShop ? (
+      <div className="hud mini" data-hint={HINT.cash}>
+        <Stat icon="$" label="Cash" value={money(s.cash)} rate={`${money(s.cashRate)}/s`} cls="cash" />
+      </div>
+    ) : null;
+  // pulse hard until the player has opened the tree a couple of times
+  const pulse = affordable > 0 && s.skills.length <= 3;
   return (
-    <div className="hud">
+    <div className={`hud ${s.flags.hudSeen ? '' : 'reveal'}`} onAnimationEnd={() => (s.flags.hudSeen = true)}>
       <div className="hud-era">
         <div className="era-label">ERA {s.era}</div>
         <div className="era-name">{ERAS[s.era].name}</div>
       </div>
-      <Stat icon="$" label="Cash" value={money(s.cash)} rate={`${money(s.cashRate)}/s`} cls="cash" />
-      <Stat icon="💡" label="Insight" value={fmt(s.insight)} rate={`${fmt(s.insightRate)}/s`} cls="insight" />
-      <div className="hud-goal">
+      <Stat icon="$" label="Cash" value={money(s.cash)} rate={`${money(s.cashRate)}/s`} cls="cash" hint={HINT.cash} />
+      <Stat icon="💡" label="Insight" value={fmt(s.insight)} rate={`${fmt(s.insightRate)}/s`} cls="insight" hint={HINT.insight} />
+      <div className="hud-goal" data-hint={HINT.shipped}>
         <div className="hud-goal-top">
           <span>Shipped {fmt(s.totalLoc)} LOC</span>
           <span className="dim">{fmt(s.locRate)} LOC/s</span>
@@ -38,22 +48,22 @@ export function Hud({ onTree }: { onTree: () => void }) {
       <Meter
         label="Tech debt"
         value={debt}
-        title={`${pct(debt)} of recent code shipped unreviewed → producers ${pct(game.debtSlow)} slower and buggier`}
+        title={`${pct(debt)} of recent code shipped unreviewed → producers ${pct(game.debtSlow)} slower and buggier. Route more code through review.`}
         text={game.debtSlow > 0.01 ? `🐌 producers -${pct(game.debtSlow)}` : 'all clear'}
         warn={game.debtSlow > 0.15}
         bad
       />
-      <Meter label="Hand-written" value={human} title="Share of all shipped code written by humans" />
-      <button className={`btn tree-btn ${affordable ? 'glow' : ''}`} onClick={onTree}>
+      <Meter label="Hand-written" value={human} title={HINT.human} />
+      <button className={`btn tree-btn ${affordable ? 'glow' : ''} ${pulse ? 'pulse' : ''}`} onClick={onTree}>
         Skill Tree{affordable ? <span className="badge">{affordable}</span> : null}
       </button>
     </div>
   );
 }
 
-function Stat({ icon, label, value, rate, cls }: { icon: string; label: string; value: string; rate: string; cls: string }) {
+function Stat({ icon, label, value, rate, cls, hint }: { icon: string; label: string; value: string; rate: string; cls: string; hint?: string }) {
   return (
-    <div className={`hud-stat ${cls}`}>
+    <div className={`hud-stat ${cls}`} data-hint={hint}>
       <div className="hud-stat-label">
         {icon} {label}
       </div>
@@ -66,7 +76,7 @@ function Stat({ icon, label, value, rate, cls }: { icon: string; label: string; 
 function Meter({ label, value, title, bad, text, warn }: { label: string; value: number; title: string; bad?: boolean; text?: string; warn?: boolean }) {
   if (text)
     return (
-      <div className={`hud-meter ${warn ? 'warn' : ''}`} title={title}>
+      <div className={`hud-meter ${warn ? 'warn' : ''}`} data-hint={title}>
         <div className="hud-stat-label">{label}</div>
         <div className={`meter ${bad ? 'bad' : ''}`}>
           <div className="meter-fill" style={{ width: `${Math.min(1, value) * 100}%` }} />
@@ -75,7 +85,7 @@ function Meter({ label, value, title, bad, text, warn }: { label: string; value:
       </div>
     );
   return (
-    <div className="hud-meter" title={title}>
+    <div className="hud-meter" data-hint={title}>
       <div className="hud-stat-label">{label}</div>
       <div className={`meter ${bad ? 'bad' : ''}`}>
         <div className="meter-fill" style={{ width: `${Math.min(1, value) * 100}%` }} />
@@ -97,13 +107,14 @@ export function Toolbox() {
   useTick(200);
   const rf = useReactFlow();
   const [open, setOpen] = useState(true);
+  if (!game.s.flags.uiShop) return null;
   const buy = (type: string) => {
     const pos = rf.screenToFlowPosition({ x: window.innerWidth / 2 + 80, y: window.innerHeight / 2 });
     const jitter = () => (Math.random() - 0.5) * 120;
     game.buy(type, pos.x - 90 + jitter(), pos.y - 100 + jitter());
   };
   return (
-    <div className={`toolbox ${open ? '' : 'closed'}`}>
+    <div className={`toolbox ${open ? '' : 'closed'} ${game.s.flags.shopSeen ? '' : 'reveal'}`} onAnimationEnd={() => (game.s.flags.shopSeen = true)}>
       <button className="toolbox-toggle" onClick={() => setOpen(!open)}>
         {open ? '◀' : '▶ Shop'}
       </button>
@@ -121,7 +132,7 @@ export function Toolbox() {
                   if (!game.isUnlocked(d.type)) {
                     const sk = SKILLS.find((k) => k.unlock === d.type);
                     return (
-                      <div key={d.type} className="tool locked" title={sk ? `Unlock with the "${sk.name}" skill` : ''}>
+                      <div key={d.type} className="tool locked" data-hint={sk ? `Unlock with the "${sk.name}" skill` : undefined}>
                         <div className="tool-sprite silhouette">
                           <Sprite id={d.sprite} scale={2.5} />
                         </div>
@@ -135,7 +146,7 @@ export function Toolbox() {
                   const cost = game.cost(d.type);
                   const can = game.s.cash >= cost;
                   return (
-                    <button key={d.type} className={`tool ${can ? '' : 'poor'}`} onClick={() => buy(d.type)} title={d.flavor}>
+                    <button key={d.type} className={`tool ${can ? '' : 'poor'}`} onClick={() => buy(d.type)} data-hint={d.flavor}>
                       <div className="tool-sprite">
                         <Sprite id={d.sprite} scale={2.5} />
                       </div>
@@ -169,9 +180,24 @@ function blurb(type: string) {
   const d = DEFS[type];
   switch (d.category) {
     case 'producer':
-      return `${fmt((d.loc ?? 0) / (d.interval ?? 1))} LOC/s · 🐞${((d.density ?? 0) * 100).toFixed(1)}${d.token ? ` · 💸$${fmt(d.token * game.g.token)}/PR` : ''}`;
+      return (
+        <>
+          <span data-hint={HINT.loc}>{fmt((d.loc ?? 0) / (d.interval ?? 1))} LOC/s</span> ·{' '}
+          <span data-hint={HINT.bugs}>🐞{((d.density ?? 0) * 100).toFixed(1)}</span>
+          {d.token ? (
+            <>
+              {' '}· <span data-hint={HINT.tokens}>💸${fmt(d.token * game.g.token)}/PR</span>
+            </>
+          ) : null}
+        </>
+      );
     case 'reviewer':
-      return `${fmt(d.reviewSpeed ?? 0)} LOC/s · 🔍${pct(d.catchRate ?? 0)}`;
+      return (
+        <>
+          <span data-hint="Lines of code one reviewer can check per second.">{fmt(d.reviewSpeed ?? 0)} LOC/s</span> ·{' '}
+          <span data-hint={HINT.catch}>🔍{pct(d.catchRate ?? 0)}</span>
+        </>
+      );
     case 'booster':
       return `${effectText(d)} → up to ${d.fanout} ${targetText(d)}${d.upkeep ? ` · $${d.upkeep}/s` : ''}`;
     case 'utility':
@@ -257,9 +283,11 @@ function currentTip(): string | null {
   if (game.g.rsi && game.debt < 0.5)
     return 'The Swarm is improving faster than anything can review it. You could… just plug it straight into Production?';
   if (s.incidents > 0 && s.era === 1 && !has('senior')) return 'Bugs that reach Production cause incidents. Put a Senior Engineer between your devs and Production.';
-  if (s.skills.length === 1 && s.insight >= 3) return '💡 Insight comes from catching bugs (and from incidents). Spend it in the Skill Tree!';
+  if (game.debt > 0.3 && s.era === 1 && has('senior'))
+    return '🐌 Tech debt is rising: code that skips review slows everyone down. Route your devs through the Senior Engineer.';
+  if (s.skills.length === 1 && s.insight >= 3) return '💡 Insight comes from catching bugs (and from incidents). Spend it in the Skill Tree (top right)!';
   if (s.skills.length === 1 && s.era === 1) return 'Reviewers turn caught bugs into 💡 Insight, which you spend in the Skill Tree.';
-  if (game.debt > 0.4 && s.era >= 2) return 'Lots of unreviewed code means tech debt, which slows every producer. Route more through review.';
+  if (game.debt > 0.4) return 'Lots of unreviewed code means tech debt, which slows every producer. Route more through review.';
   if (s.era === 3 && !has('chatbot')) return 'Chat Assistants cost tokens per PR. Keep some cash in the bank, or they stall.';
   const router = nodes.find((n) => n.type === 'router');
   if (router && new Set(s.edges.filter((e) => e.source === router.id).map((e) => e.sourceHandle)).size < 2) return 'Triage Bot: send risky PRs through heavy review and let safe ones take the fast lane.';

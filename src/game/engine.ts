@@ -695,6 +695,18 @@ class Game {
     s.debtU *= decay;
     s.debtT *= decay;
 
+    // progressive disclosure: the shop shows up once you can afford a hire,
+    // the HUD (and tech debt) once you have a reviewer
+    if (!s.flags.uiShop || !s.flags.debtOn) {
+      const nodes = Object.values(s.nodes);
+      if (s.cash >= 15 || nodes.length > 2) s.flags.uiShop = true;
+      if (nodes.some((n) => this.def(n).category === 'reviewer') || s.skills.length > 1) {
+        s.flags.debtOn = s.flags.uiHud = true;
+        // start from a little clean history so debt creeps in rather than slamming to 100%
+        s.debtT += Math.max(100, s.locRate * 20);
+      }
+    }
+
     // incidents
     s.focus = Math.max(0, s.focus - dt * 0.1);
     if (!s.flags.debtWarned && this.debtSlow > 0.2) {
@@ -762,8 +774,11 @@ class Game {
     s.totalLoc += p.loc;
     if (p.human) s.humanLoc += p.loc;
     s.backlog += p.bugs;
-    s.debtT += p.loc;
-    if (!p.reviewed) s.debtU += p.loc;
+    // debt only counts once you've hired someone who could have reviewed it
+    if (s.flags.debtOn) {
+      s.debtT += p.loc;
+      if (!p.reviewed) s.debtU += p.loc;
+    }
     sink.lastActive = s.time;
     const pg = (this.pendingGain[sink.id] ??= { amount: 0, t: s.time });
     pg.amount += value;

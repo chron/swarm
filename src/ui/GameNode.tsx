@@ -5,6 +5,7 @@ import { acceptsFlow, acceptsMods, emitsFlow, type NodeDef } from '../game/defs'
 import { fmt, pct } from '../game/format';
 import { Sprite, spriteFrame } from '../sprites/Sprite';
 import { useTick } from './hooks';
+import { HINT } from './Hints';
 
 const FIRE = { g: '#ef4444', a: '#f97316', b: '#ef4444', R: '#7f1d1d' };
 
@@ -103,7 +104,7 @@ export function GameNode({ id, selected }: NodeProps) {
         </div>
       )}
       {isYouBoost && (
-        <div className="bar focus" title="Focus: mash your keyboard to amplify your boost">
+        <div className="bar focus" data-hint={HINT.focus}>
           <div className="bar-fill" style={{ width: `${game.s.focus * 100}%` }} />
           <span>FOCUS ×{(1 + 0.6 * game.s.focus).toFixed(1)}</span>
         </div>
@@ -112,11 +113,13 @@ export function GameNode({ id, selected }: NodeProps) {
       <div className="gnode-stats">
         {d.category === 'producer' && (
           <>
-            <span>{d.manual ? `${d.loc} LOC / ${CLICKS_PER_PR} clicks` : `${fmt(st.locRate ?? 0)} LOC/s`}</span>
-            <span title="Bugs per 100 LOC">🐞 {((st.density ?? 0) * 100).toFixed(1)}</span>
-            {st.token ? <span title="Token cost per PR">💸 ${fmt(st.token)}</span> : null}
+            <span data-hint={d.manual ? 'Click (or mash keys) to type. Every few clicks makes a PR.' : HINT.loc}>
+              {d.manual ? `${d.loc} LOC / ${CLICKS_PER_PR} clicks` : `${fmt(st.locRate ?? 0)} LOC/s`}
+            </span>
+            <span data-hint={HINT.bugs}>🐞 {((st.density ?? 0) * 100).toFixed(1)}</span>
+            {st.token ? <span data-hint={HINT.tokens}>💸 ${fmt(st.token)}</span> : null}
             {game.debtSlow > 0.05 && (
-              <span className="debt-badge" title="Tech debt slows every producer and makes its code buggier">
+              <span className="debt-badge" data-hint={HINT.debt}>
                 🐌 -{Math.round(game.debtSlow * 100)}%
               </span>
             )}
@@ -124,9 +127,9 @@ export function GameNode({ id, selected }: NodeProps) {
         )}
         {d.category === 'reviewer' && (
           <>
-            <span>{fmt(st.locRate ?? 0)} LOC/s</span>
-            <span title="Share of bugs caught">🔍 {pct(st.catchRate ?? 0)}</span>
-            <span className="queue" title="Review queue">
+            <span data-hint="Lines of code this squad can review per second.">{fmt(st.locRate ?? 0)} LOC/s</span>
+            <span data-hint={HINT.catch}>🔍 {pct(st.catchRate ?? 0)}</span>
+            <span className="queue" data-hint={HINT.queue}>
               {Array.from({ length: d.queueCap ?? 3 }, (_, i) => (
                 <i key={i} className={i < n.queue.length ? 'full' : ''} />
               ))}
@@ -136,21 +139,21 @@ export function GameNode({ id, selected }: NodeProps) {
         {d.category === 'booster' && (
           <>
             <span>{effectText(d)}</span>
-            <span>
+            <span data-hint={HINT.boost}>
               ◆ powering {modsUsed}/{d.fanout}
             </span>
-            {d.upkeep ? <span>💸 ${d.upkeep}/s</span> : null}
+            {d.upkeep ? <span data-hint="Upkeep: $ per second while plugged in.">💸 ${d.upkeep}/s</span> : null}
           </>
         )}
         {d.category === 'utility' && (
-          <span>
+          <span data-hint={HINT.router}>
             risky = 🐞 &gt; {((d.threshold ?? 0) * 100).toFixed(0)}/100 LOC
           </span>
         )}
         {d.category === 'sink' && (
           <>
-            <span>${(st.value ?? 1).toFixed(2)}/LOC</span>
-            <span title="Escaped bugs piling up — they become incidents">🐞 {game.s.backlog.toFixed(1)} lurking</span>
+            <span data-hint={HINT.value}>${(st.value ?? 1).toFixed(2)}/LOC</span>
+            <span data-hint={HINT.lurking}>🐞 {game.s.backlog.toFixed(1)} lurking</span>
           </>
         )}
       </div>

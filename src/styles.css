@@ -365,3 +365,29 @@ button { font-family: inherit; color: inherit; }
 .controls { text-align: left; margin-bottom: 18px; }
 .controls div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px dashed var(--line); padding: 4px 0; }
 .controls span { color: var(--dim); text-align: right; }
+
+/* ------------------------------------------------------------ disclosure, hints */
+.hud.mini { padding: 6px 18px; animation: drop-in 0.4s steps(4); }
+.hud.reveal { animation: drop-in 0.5s steps(5); }
+.toolbox.reveal { animation: slide-in 0.5s steps(5); }
+@keyframes drop-in { from { transform: translate(var(--tx, 0), -120%); opacity: 0; } }
+.hud { --tx: -50%; }
+@keyframes slide-in { from { transform: translateX(-110%); opacity: 0; } }
+.tree-btn.pulse { animation: tree-pulse 1s steps(4) infinite; position: relative; }
+.tree-btn.pulse::after {
+  content: '◀ NEW!'; position: absolute; right: -78px; top: 50%; transform: translateY(-50%);
+  color: var(--insight); font-size: 14px; animation: nudge 0.6s steps(2) infinite; pointer-events: none;
+}
+@keyframes tree-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.9), 4px 4px 0 #000; transform: scale(1); }
+  50% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0), 4px 4px 0 #000; transform: scale(1.08); }
+}
+@keyframes nudge { 50% { transform: translate(-5px, -50%); } }
+.hint {
+  position: fixed; z-index: 100; transform: translate(-50%, -100%); max-width: 260px; pointer-events: none;
+  background: #000; color: var(--ink); border: 2px solid var(--line); padding: 6px 9px; font-size: 14px; line-height: 1.25;
+  box-shadow: 3px 3px 0 #000; font-family: var(--ui, inherit); text-align: left;
+}
+.hint.below { transform: translate(-50%, 0); }
+[data-hint] { cursor: help; }
+button[data-hint], .gnode-stage[data-hint] { cursor: pointer; }
