@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
 import { game } from '../game/engine';
 import { fmt } from '../game/format';
 import { useTick } from './hooks';
@@ -83,6 +83,7 @@ export function PacketEdge(props: EdgeProps) {
       <path ref={streamRef} d={path} className="stream" fill="none" style={{ display: 'none' }} />
       <g ref={gRef} />
       <text ref={labelRef} x={lx} y={ly - 12} className="edge-label" textAnchor="middle" style={{ display: 'none' }} />
+      {selected && <Snip id={id} x={lx} y={ly} />}
     </>
   );
 }
@@ -90,7 +91,28 @@ export function PacketEdge(props: EdgeProps) {
 export function ModEdge(props: EdgeProps) {
   useTick(300);
   const { id, source, selected } = props;
-  const [path] = getBezierPath(props);
+  const [path, lx, ly] = getBezierPath(props);
   const on = game.s.nodes[source]?.status === 'busy';
-  return <BaseEdge id={id} path={path} className={`mod-edge ${on ? 'on' : 'off'} ${selected ? 'sel' : ''}`} interactionWidth={16} />;
+  return (
+    <>
+      <BaseEdge id={id} path={path} className={`mod-edge ${on ? 'on' : 'off'} ${selected ? 'sel' : ''}`} interactionWidth={16} />
+      {selected && <Snip id={id} x={lx} y={ly} />}
+    </>
+  );
+}
+
+/** Unplug button shown on a selected cable. */
+function Snip({ id, x, y }: { id: string; x: number; y: number }) {
+  return (
+    <EdgeLabelRenderer>
+      <button
+        className="snip nodrag nopan"
+        style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
+        onClick={() => game.disconnect(id)}
+        title="Unplug"
+      >
+        ✂
+      </button>
+    </EdgeLabelRenderer>
+  );
 }

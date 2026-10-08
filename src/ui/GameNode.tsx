@@ -72,7 +72,10 @@ export function GameNode({ id, selected }: NodeProps) {
 
   return (
     <div className={`gnode cat-${d.category} st-${n.status} ${selected ? 'sel' : ''} ${onFire ? 'on-fire' : ''}`}>
-      <div className="gnode-title">{d.name}</div>
+      <div className="gnode-title">
+        <span>{d.name}</span>
+        {game.canHire(id) && <span className="headcount">×{n.count}</span>}
+      </div>
       <div
         className={`gnode-stage ${d.manual ? 'clickable' : ''}`}
         onClick={d.manual ? () => game.click(id) : undefined}
@@ -116,7 +119,7 @@ export function GameNode({ id, selected }: NodeProps) {
           <>
             <span>{effectText(d)}</span>
             <span>
-              ◆ {modsUsed}/{d.fanout}
+              ◆ powering {modsUsed}/{d.fanout}
             </span>
             {d.upkeep ? <span>💸 ${d.upkeep}/s</span> : null}
           </>
@@ -134,11 +137,15 @@ export function GameNode({ id, selected }: NodeProps) {
         )}
       </div>
 
+      {game.canHire(id) && <HireButtons id={id} />}
+
       {st.mod.sources.length > 0 && (
         <div className="gnode-mods">
-          {st.mod.sources.map((sid, i) => (
-            <Sprite key={i} id={game.def(sid).sprite} scale={1.25} />
-          ))}
+          {st.mod.sources
+            .filter((sid) => game.s.nodes[sid])
+            .map((sid, i) => (
+              <Sprite key={i} id={game.def(sid).sprite} scale={1.25} />
+            ))}
         </div>
       )}
 
@@ -154,6 +161,32 @@ export function GameNode({ id, selected }: NodeProps) {
       )}
       {acceptsMods(d) && <Handle type="target" position={Position.Bottom} id="modin" className="jack jack-mod" />}
       {d.category === 'booster' && <Handle type="source" position={Position.Right} id="mod" className="jack jack-mod" />}
+    </div>
+  );
+}
+
+function HireButtons({ id }: { id: string }) {
+  const n = game.s.nodes[id];
+  const cost = game.cost(n.type);
+  const can = game.affordable(id);
+  const verb = game.def(n).kind === 'human' ? 'Hire' : 'Add';
+  const cap = game.teamCap(id);
+  if (n.count >= cap)
+    return (
+      <div className="hire nodrag">
+        <div className="hire-full" title="Buy another squad from the shop to grow further">
+          Squad full ({cap}/{cap}) · buy another squad
+        </div>
+      </div>
+    );
+  return (
+    <div className="hire nodrag">
+      <button className={`hire-btn ${can ? '' : 'poor'}`} onClick={() => game.hire(id)} title={`${verb} one more to this team`}>
+        +1 {verb} <b>${fmt(cost)}</b>
+      </button>
+      <button className={`hire-btn max ${can > 1 ? '' : 'poor'}`} onClick={() => game.hire(id, true)} title="Hire as many as you can afford">
+        +{can > 1 ? can : ''} Max
+      </button>
     </div>
   );
 }

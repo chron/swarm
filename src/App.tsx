@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -99,6 +99,29 @@ function Board() {
     [toast],
   );
 
+  // drag a cable's end to re-plug it, or drop it on empty canvas to unplug
+  const reconnected = useRef(false);
+  const onReconnectStart = useCallback(() => {
+    reconnected.current = false;
+  }, []);
+  const onReconnect = useCallback(
+    (old: Edge, c: Connection) => {
+      reconnected.current = true;
+      const backup = game.edge(old.id);
+      game.disconnect(old.id);
+      const err = game.connect(c);
+      if (err) {
+        toast(err);
+        if (backup) game.connect({ source: backup.source, sourceHandle: backup.sourceHandle, target: backup.target, targetHandle: backup.targetHandle });
+      }
+    },
+    [toast],
+  );
+  const onReconnectEnd = useCallback((_: unknown, edge: Edge) => {
+    if (!reconnected.current) game.disconnect(edge.id);
+    reconnected.current = true;
+  }, []);
+
   const selected = nodes.find((n) => n.selected)?.id ?? null;
 
   return (
@@ -114,6 +137,9 @@ function Board() {
         onNodesDelete={(ns) => ns.forEach((n) => game.sell(n.id))}
         onEdgesDelete={(es) => es.forEach((e) => game.disconnect(e.id))}
         onEdgeDoubleClick={(_, e) => game.disconnect(e.id)}
+        onReconnectStart={onReconnectStart}
+        onReconnect={onReconnect}
+        onReconnectEnd={onReconnectEnd}
         isValidConnection={(c) => game.validate(c as Connection) === null}
         fitView
         fitViewOptions={{ padding: 0.6, maxZoom: 1 }}
@@ -144,10 +170,36 @@ function Board() {
   );
 }
 
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    return (
+      <div className="crash">
+        <div className="crash-card">
+          <div className="crash-title">🔥 The game crashed (ironic, given the theme)</div>
+          <pre>{`${error.message}\n\n${error.stack ?? ''}`.slice(0, 2000)}</pre>
+          <div className="end-buttons">
+            <button className="btn" onClick={() => location.reload()}>
+              Reload (your save is kept)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
 export default function App() {
   return (
-    <ReactFlowProvider>
-      <Board />
-    </ReactFlowProvider>
+    <ErrorBoundary>
+      <ReactFlowProvider>
+        <Board />
+      </ReactFlowProvider>
+    </ErrorBoundary>
   );
 }

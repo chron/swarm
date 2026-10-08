@@ -282,3 +282,32 @@ button { font-family: inherit; color: inherit; }
 .end-lines { color: #cfd0f0; margin: 16px 0; }
 .end-lines p { margin: 4px 0; }
 .end-buttons { display: flex; gap: 12px; justify-content: center; }
+
+/* ------------------------------------------------------------ teams, unplugging, crash */
+.gnode-title { display: flex; justify-content: space-between; align-items: baseline; }
+.headcount { font-family: var(--num); font-size: 20px; line-height: 0.8; }
+.hire { display: flex; gap: 4px; padding: 0 6px 8px; }
+.hire-btn {
+  flex: 1; background: #0d0d1d; border: 2px solid var(--c); padding: 2px 4px; cursor: pointer;
+  font-size: 12px; white-space: nowrap;
+}
+.hire-btn b { font-family: var(--num); font-size: 15px; color: var(--cash); font-weight: 400; }
+.hire-btn.max { flex: none; }
+.hire-btn:hover { background: var(--c); color: #0b0b14; }
+.hire-btn:hover b { color: #0b0b14; }
+.hire-btn:active { transform: translate(1px, 1px); }
+.hire-btn.poor { opacity: 0.4; }
+.hire-btn.poor b { color: var(--bad); }
+.snip {
+  position: absolute; pointer-events: all; width: 30px; height: 30px; font-size: 16px;
+  background: #fff; color: #111; border: 3px solid #000; box-shadow: 2px 2px 0 #000; cursor: pointer;
+}
+.snip:hover { background: var(--bad); color: #fff; }
+.react-flow__edgeupdater { cursor: grab; }
+.crash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 100; }
+.crash-card { background: var(--panel); border: 3px solid var(--bad); box-shadow: 8px 8px 0 #000; padding: 20px; max-width: 760px; }
+.crash-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.crash pre { background: #000; padding: 10px; font-size: 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; }
+.hire-full { flex: 1; text-align: center; font-size: 11px; color: var(--dim); border: 2px dashed var(--line); padding: 3px 4px; }
+.toolbox-help { margin-top: auto; padding: 8px 10px; border-top: 2px dashed var(--line); font-size: 12px; color: var(--dim); line-height: 1.4; }
+.toolbox-help b { color: var(--ink); }

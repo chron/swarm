@@ -6,7 +6,8 @@ export const GOAL_LOC = 1e9;
 export const CLICKS_PER_PR = 4;
 export const MOD_JACKS = 3;
 const TRAVEL = 0.9; // seconds for a PR to cross a cable
-const MIN_INTERVAL = 0.35; // faster producers emit bigger PRs instead of more PRs
+const MIN_INTERVAL = 0.35;
+const EDGE_CAP = 6; // max PRs in transit on one cable // faster producers emit bigger PRs instead of more PRs
 const BUG_COST = 10; // an escaped bug costs this many LOC worth of value
 const INCIDENT_THRESHOLD = 3;
 const INCIDENT_COOLDOWN = 6;
@@ -35,6 +36,7 @@ export interface GNode {
   rr: number;
   status: Status;
   lastActive: number;
+  count: number; // team headcount
 }
 
 export interface GEdge {
@@ -110,7 +112,7 @@ export interface Connection {
 }
 
 function newNode(id: string, type: string, x: number, y: number): GNode {
-  return { id, type, x, y, prog: 0, held: null, queue: [], cur: null, curProg: 0, rr: 0, status: 'idle', lastActive: -99 };
+  return { id, type, x, y, prog: 0, held: null, queue: [], cur: null, curProg: 0, rr: 0, status: 'idle', lastActive: -99, count: 1 };
 }
 
 function freshState(): State {
@@ -175,7 +177,10 @@ class Game {
       const raw = localStorage.getItem(SAVE_KEY);
       if (raw) {
         const s = JSON.parse(raw) as State;
-        if (s.v === SAVE_VERSION) this.s = { ...freshState(), ...s };
+        if (s.v === SAVE_VERSION) {
+          this.s = { ...freshState(), ...s };
+          for (const n of Object.values(this.s.nodes)) n.count ??= 1;
+        }
       }
     } catch {
       /* ignore broken saves */
@@ -226,7 +231,7 @@ class Game {
 
   count(type: string) {
     let c = 0;
-    for (const id in this.s.nodes) if (this.s.nodes[id].type === type) c++;
+    for (const id in this.s.nodes) if (this.s.nodes[id].type === type) c += this.s.nodes[id].count;
     return c;
   }
 
@@ -252,7 +257,7 @@ class Game {
   }
 
   rsiMult() {
-    return this.g.rsi ? Math.min(1e7, Math.pow(2, this.s.rsiTime / 8)) : 1;
+    return this.g.rsi ? Math.min(1e7, Math.pow(2, this.s.rsiTime / 6)) : 1;
   }
 
   /** Effective numbers for a node, used by the UI. */
@@ -260,7 +265,6 @@ class Game {
     const n = this.s.nodes[id];
     const d = this.def(n);
     const m = this.mods[id] ?? emptyMod();
-    const k = d.kind === 'none' ? 'tool' : d.kind;
     const out: { speed?: number; locRate?: number; density?: number; catchRate?: number; token?: number; value?: number; mod: Mod } = { mod: m };
     if (d.category === 'producer') {
       const speed = this.producerSpeed(n, d, m);
@@ -270,7 +274,7 @@ class Game {
       if (d.token) out.token = d.token * this.g.token;
     }
     if (d.category === 'reviewer') {
-      out.locRate = (d.reviewSpeed ?? 0) * this.g.reviewSpeed[k] * m.speed;
+      out.locRate = this.reviewSpeed(n, d, m);
       out.catchRate = this.catchRate(d, m);
     }
     if (d.category === 'sink') out.value = this.g.value * m.value;
@@ -279,9 +283,14 @@ class Game {
 
   private producerSpeed(n: GNode, d: NodeDef, m: Mod) {
     const k = d.kind === 'none' ? 'tool' : d.kind;
-    let speed = this.g.speed[k] * m.speed * (1 - this.debtSlow);
+    let speed = this.g.speed[k] * m.speed * n.count * (1 - this.debtSlow);
     if (n.type === 'swarm' || n.type === 'cloud') speed *= this.rsiMult();
     return speed;
+  }
+
+  private reviewSpeed(n: GNode, d: NodeDef, m: Mod) {
+    const k = d.kind === 'none' ? 'tool' : d.kind;
+    return (d.reviewSpeed ?? 1) * this.g.reviewSpeed[k] * m.speed * n.count;
   }
 
   private density(d: NodeDef, m: Mod) {
@@ -325,11 +334,66 @@ class Game {
   sell(id: string) {
     const n = this.s.nodes[id];
     if (!n || this.def(n).unique) return;
-    const refund = Math.floor(this.cost(n.type, -1) * 0.5);
+    const refund = this.refund(id);
     delete this.s.nodes[id];
     this.s.edges = this.s.edges.filter((e) => e.source !== id && e.target !== id);
     this.s.cash += refund;
+    this.mods = this.computeMods(0);
     this.bump();
+  }
+
+  /** Half of what the whole team cost. */
+  refund(id: string) {
+    const n = this.s.nodes[id];
+    if (!n || this.def(n).unique) return 0;
+    let total = 0;
+    for (let i = 1; i <= n.count; i++) total += this.cost(n.type, -i);
+    return Math.floor(total * 0.5);
+  }
+
+  canHire(id: string) {
+    const n = this.s.nodes[id];
+    if (!n) return false;
+    const d = this.def(n);
+    return !d.unique && (d.category === 'producer' || d.category === 'reviewer');
+  }
+
+  teamCap(id: string) {
+    const d = this.def(id);
+    return this.g.teamCap[d.kind === 'none' ? 'tool' : d.kind];
+  }
+
+  /** Grow a team by one (or as many as affordable). Returns how many were hired. */
+  hire(id: string, max = false) {
+    if (!this.canHire(id)) return 0;
+    const n = this.s.nodes[id];
+    let hired = 0;
+    do {
+      if (n.count >= this.teamCap(id)) break;
+      const c = this.cost(n.type);
+      if (this.s.cash < c) break;
+      this.s.cash -= c;
+      n.count++;
+      hired++;
+    } while (max && hired < 1000);
+    return hired;
+  }
+
+  /** How many more this team could hire right now. */
+  affordable(id: string) {
+    const n = this.s.nodes[id];
+    if (!n) return 0;
+    const d = this.def(n);
+    let cash = this.s.cash;
+    let k = 0;
+    const room = this.teamCap(id) - n.count;
+    while (k < room) {
+      const c = Math.ceil(d.cost * Math.pow(d.growth, this.count(n.type) + k));
+      if (cash < c) break;
+      cash -= c;
+      k++;
+    }
+    return k;
   }
 
   move(id: string, x: number, y: number) {
@@ -374,6 +438,8 @@ class Game {
     if (err) return err;
     const sh = c.sourceHandle ?? 'out';
     const kind = sh === 'mod' ? 'mod' : 'flow';
+    // one cable per code output jack: plugging it somewhere new moves the cable
+    if (kind === 'flow') this.s.edges = this.s.edges.filter((e) => !(e.source === c.source && e.sourceHandle === sh));
     this.s.edges.push(mkEdge(`e${this.s.nextId++}`, c.source!, sh, c.target!, c.targetHandle ?? 'in', kind));
     this.mods = this.computeMods(0);
     this.bump();
@@ -383,7 +449,10 @@ class Game {
   disconnect(id: string) {
     const before = this.s.edges.length;
     this.s.edges = this.s.edges.filter((e) => e.id !== id);
-    if (this.s.edges.length !== before) this.bump();
+    if (this.s.edges.length !== before) {
+      this.mods = this.computeMods(0);
+      this.bump();
+    }
   }
 
   canBuySkill(id: string) {
@@ -478,7 +547,8 @@ class Game {
       const n = s.nodes[id];
       const d = this.def(n);
       if (d.category === 'sink') return true;
-      return n.queue.length + (inbound[id] ?? 0) < (d.queueCap ?? 3);
+      // PRs already on a cable don't count: they'll just queue a little past the cap
+      return n.queue.length < (d.queueCap ?? 3);
     };
 
     const trySend = (n: GNode, handle: string) => {
@@ -487,7 +557,7 @@ class Game {
       if (!list?.length) return;
       for (let i = 0; i < list.length; i++) {
         const e = list[(n.rr + i) % list.length];
-        if (!canAccept(e.target)) continue;
+        if (e.packets.length >= EDGE_CAP || !canAccept(e.target)) continue;
         e.packets.push({ p: n.held, t: 0 });
         e.acc++;
         e.accLoc += n.held.loc;
@@ -528,26 +598,32 @@ class Game {
         else if (d.manual) n.status = s.time - n.lastActive < 0.6 ? 'busy' : 'idle';
         else if (n.status !== 'broke' || n.prog < 1) n.status = 'busy';
       } else if (d.category === 'reviewer') {
-        if (!n.cur && !n.held && n.queue.length) {
-          n.cur = n.queue.shift()!;
-          n.curProg = 0;
-        }
-        if (n.cur) {
-          const k = d.kind === 'none' ? 'tool' : d.kind;
-          n.curProg += dt * (d.reviewSpeed ?? 1) * this.g.reviewSpeed[k] * m.speed;
-          if (n.curProg >= n.cur.loc) {
-            const caught = n.cur.bugs * this.catchRate(d, m);
-            n.cur.bugs -= caught;
-            n.cur.reviewed = true;
-            const gained = caught * this.g.insight;
-            s.insight += gained;
-            this.gainedInsight += gained;
-            s.bugsCaught += caught;
-            n.held = n.cur;
-            n.cur = null;
+        // a big team can get through several PRs per tick
+        let budget = dt * this.reviewSpeed(n, d, m);
+        for (let guard = 0; guard < 8; guard++) {
+          trySend(n, 'out');
+          if (n.held) break;
+          if (!n.cur) {
+            if (!n.queue.length) break;
+            n.cur = n.queue.shift()!;
+            n.curProg = 0;
           }
+          const need = n.cur.loc - n.curProg;
+          if (budget < need) {
+            n.curProg += budget;
+            break;
+          }
+          budget -= need;
+          const caught = n.cur.bugs * this.catchRate(d, m);
+          n.cur.bugs -= caught;
+          n.cur.reviewed = true;
+          const gained = caught * this.g.insight;
+          s.insight += gained;
+          this.gainedInsight += gained;
+          s.bugsCaught += caught;
+          n.held = n.cur;
+          n.cur = null;
         }
-        trySend(n, 'out');
         n.status = n.held ? 'blocked' : n.cur ? 'busy' : 'idle';
       } else if (d.category === 'utility') {
         if (!n.held && n.queue.length) n.held = n.queue.shift()!;
@@ -632,7 +708,7 @@ class Game {
     const s = this.s;
     const bugs = s.backlog;
     const cost = Math.min(s.cash, bugs * BUG_COST * this.g.value * this.g.incidentCost);
-    const insight = (1 + bugs * 0.25) * this.g.incidentInsight;
+    const insight = (1 + bugs * 0.4) * this.g.incidentInsight;
     s.cash -= cost;
     s.insight += insight;
     this.gainedInsight += insight;

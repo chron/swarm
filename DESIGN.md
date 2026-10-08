@@ -17,6 +17,11 @@ agents, servers that blink and catch fire.
 - **Code cables** (● jacks) carry **PRs**: packets of code with `loc`, `bugs` and `reviewed`.
 - **Booster cables** (◆ jacks) work like modular-synth CV. A booster modifies the nodes it's plugged into.
   Each booster has a limited **fanout**, and each node has a limited number of mod jacks.
+- **Squads**: producers and reviewers are squads with a headcount. The shop buys a new squad, and **+1 Hire** grows one.
+  Human squads cap at 8 (the two-pizza rule) and others at 10. Orchestration raises AI squads to 25. This keeps
+  some wiring without turning it into a chore.
+- Each code output jack holds **one cable**. Plugging it somewhere new moves the cable. Inputs accept many.
+  Boosters fan out to several nodes.
 - PRs start as discrete visible packets. As throughput grows, cables turn into glowing **streams**.
 
 ### Node categories

@@ -137,6 +137,13 @@ export function Toolbox() {
           })}
         </div>
       )}
+      {open && (
+        <div className="toolbox-help">
+          Shop buys a new squad · <b>+1 Hire</b> on a card grows it
+          <br />
+          Click a cable → <b>✂</b> to unplug · drag a cable end to re-plug
+        </div>
+      )}
     </div>
   );
 }
@@ -149,7 +156,7 @@ function blurb(type: string) {
     case 'reviewer':
       return `${fmt(d.reviewSpeed ?? 0)} LOC/s · 🔍${pct(d.catchRate ?? 0)}`;
     case 'booster':
-      return `${effectText(d)} → ${targetText(d)} (×${d.fanout})${d.upkeep ? ` · $${d.upkeep}/s` : ''}`;
+      return `${effectText(d)} → up to ${d.fanout} ${targetText(d)}${d.upkeep ? ` · $${d.upkeep}/s` : ''}`;
     case 'utility':
       return 'Splits risky / safe PRs';
     default:
@@ -165,7 +172,7 @@ export function Inspector({ id }: { id: string | null }) {
   if (!n) return null;
   const d = game.def(n);
   const st = game.stats(n.id);
-  const refund = d.unique ? 0 : Math.floor(game.cost(n.type, -1) * 0.5);
+  const refund = game.refund(n.id);
   return (
     <div className="inspector">
       <div className="insp-head">
@@ -185,14 +192,18 @@ export function Inspector({ id }: { id: string | null }) {
         {st.catchRate !== undefined && <Row k="Catches" v={pct(st.catchRate)} />}
         {st.token !== undefined && <Row k="Tokens" v={`$${fmt(st.token)} per PR`} />}
         {d.category === 'booster' && <Row k="Effect" v={`${effectText(d)} → ${targetText(d)}`} />}
+        {d.category === 'booster' && <Row k="Powers" v={`up to ${d.fanout} node${d.fanout === 1 ? '' : 's'} (◆ cables)`} />}
         {d.upkeep && <Row k="Upkeep" v={`$${d.upkeep}/s while plugged in`} />}
         {st.value !== undefined && <Row k="Value" v={`$${st.value.toFixed(2)} per LOC`} />}
-        {st.mod.sources.length > 0 && <Row k="Boosted by" v={st.mod.sources.map((s) => game.def(s).name).join(', ')} />}
+        {game.canHire(id!) && <Row k="Squad size" v={`${n.count} / ${game.teamCap(n.id)}`} />}
+        {st.mod.sources.length > 0 && (
+          <Row k="Boosted by" v={st.mod.sources.filter((s) => game.s.nodes[s]).map((s) => game.def(s).name).join(', ')} />
+        )}
         {d.category === 'producer' && game.debtSlow > 0.01 && <Row k="Tech debt" v={`-${pct(game.debtSlow)} speed`} bad />}
       </div>
       {!d.unique && (
         <button className="btn sell" onClick={() => game.sell(n.id)}>
-          Sell for {money(refund)}
+          {n.count > 1 ? 'Disband squad' : 'Sell'} for {money(refund)}
         </button>
       )}
     </div>

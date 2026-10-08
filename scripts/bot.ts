@@ -18,26 +18,35 @@ function locRate(types: string[], producer: boolean) {
   return nodesOf(types).reduce((a, n) => a + (game.stats(n.id).locRate ?? 0), 0) * (producer ? 1 : 1);
 }
 
-function wire(id: string) {
-  const d = DEFS[s().nodes[id].type];
-  if (d.category === 'producer') for (const r of nodesOf(REVIEWERS)) game.connect({ source: id, sourceHandle: 'out', target: r.id, targetHandle: 'in' });
-  if (d.category === 'reviewer') {
-    game.connect({ source: id, sourceHandle: 'out', target: 'prod', targetHandle: 'in' });
-    for (const p of nodesOf(PRODUCERS)) game.connect({ source: p.id, sourceHandle: 'out', target: id, targetHandle: 'in' });
-    // first reviewer: unplug producers going direct to prod
-    s().edges = s().edges.filter((e) => !(e.target === 'prod' && DEFS[s().nodes[e.source].type].category === 'producer' && e.source !== 'you'));
-  }
-  if (d.category === 'booster') {
-    const cands = Object.values(s().nodes).sort((a, b) => (game.stats(b.id).locRate ?? 0) - (game.stats(a.id).locRate ?? 0));
-    for (const t of cands) game.connect({ source: id, sourceHandle: 'mod', target: t.id, targetHandle: 'modin' });
-  }
+// one team per type: producers -> best reviewer team -> prod
+const team = (type: string) => nodesOf([type])[0];
+function bestReviewer() {
+  return REVIEWERS.map(team).find(Boolean);
 }
-
+function bestReviewers() {
+  const r = bestReviewer();
+  return r ? nodesOf([r.type]) : [];
+}
+function rewire() {
+  const rs = bestReviewers();
+  nodesOf(PRODUCERS).forEach((p, i) =>
+    game.connect({ source: p.id, sourceHandle: 'out', target: rs.length ? rs[i % rs.length].id : 'prod', targetHandle: 'in' }),
+  );
+  for (const rv of nodesOf(REVIEWERS)) game.connect({ source: rv.id, sourceHandle: 'out', target: 'prod', targetHandle: 'in' });
+}
+function boost(id: string) {
+  const cands = Object.values(s().nodes).sort((a, b) => (game.stats(b.id).locRate ?? 0) - (game.stats(a.id).locRate ?? 0));
+  for (const t of cands) game.connect({ source: id, sourceHandle: 'mod', target: t.id, targetHandle: 'modin' });
+}
 function tryBuy(type: string) {
   if (!game.isUnlocked(type)) return false;
+  const existing = nodesOf([type]).find((n) => n.count < game.teamCap(n.id));
+  if (existing) return game.hire(existing.id) > 0;
   const id = game.buy(type, 0, 0);
-  if (id) wire(id);
-  return !!id;
+  if (!id) return false;
+  if (DEFS[type].category === 'booster') boost(id);
+  else rewire();
+  return true;
 }
 
 let t = 0;
@@ -56,7 +65,7 @@ while (t < 40 * 60 && !s().won) {
   }
 
   const prodRate = locRate(PRODUCERS, true);
-  const revRate = locRate(REVIEWERS, false);
+  const revRate = bestReviewers().reduce((a, n) => a + (game.stats(n.id).locRate ?? 0), 0);
   const bestP = PRODUCERS.find((p) => game.isUnlocked(p))!;
   const bestR = REVIEWERS.find((r) => game.isUnlocked(r))!;
   const bestB = BOOSTERS.find((b) => game.isUnlocked(b) && nodesOf([b]).length < 3);
@@ -66,6 +75,7 @@ while (t < 40 * 60 && !s().won) {
   if (revRate < prodRate * 0.9) spend(bestR);
   else spend(bestP);
   if (bestB) spend(bestB);
+  if (Math.round(t * 10) % 300 === 0 && process.env.TRACE) console.log(fmtT(t), `prod=${prodRate.toFixed(0)} rev=${revRate.toFixed(0)} cash=${s().cash.toExponential(1)} $/s=${s().cashRate.toExponential(1)} ins/s=${s().insightRate.toFixed(0)} blocked=${Object.values(s().nodes).filter(n=>n.status==="blocked").map(n=>n.type).join(",")} broke=${Object.values(s().nodes).filter(n=>n.status==="broke").map(n=>n.type).join(",")}`);
   if (game.isUnlocked('pm') && nodesOf(['pm']).length < 1) spend('pm');
 }
 
@@ -76,5 +86,5 @@ console.log(log.join('\n'));
 console.log(`${s().won ? 'WON' : 'not won'} at ${fmtT(t)}  loc=${s().totalLoc.toExponential(2)} / ${GOAL_LOC.toExponential(0)}`);
 console.log(`skills=${s().skills.length}/${SKILLS.length} incidents=${s().incidents} debt=${game.debt.toFixed(2)} cash=${s().cash.toFixed(0)} insight=${s().insight.toFixed(0)}`);
 const counts: Record<string, number> = {};
-Object.values(s().nodes).forEach((n) => (counts[n.type] = (counts[n.type] ?? 0) + 1));
+Object.values(s().nodes).forEach((n) => (counts[n.type] = (counts[n.type] ?? 0) + n.count));
 console.log(counts);
