@@ -88,3 +88,4 @@ console.log(`skills=${s().skills.length}/${SKILLS.length} incidents=${s().incide
 const counts: Record<string, number> = {};
 Object.values(s().nodes).forEach((n) => (counts[n.type] = (counts[n.type] ?? 0) + n.count));
 console.log(counts);
+console.log("final", s().final);

@@ -4,7 +4,8 @@ import { duration, fmt } from '../game/format';
 import { Sprite } from '../sprites/Sprite';
 
 export function EndScreen({ onContinue }: { onContinue: () => void }) {
-  const s = game.s;
+  const live = game.s;
+  const s = live.final ?? { ...live, time: live.wonTime };
   const human = s.humanLoc / Math.max(1, s.totalLoc);
   return (
     <div className="end-overlay">
@@ -16,9 +17,9 @@ export function EndScreen({ onContinue }: { onContinue: () => void }) {
         <div className="end-title">1,000,000,000 lines shipped.</div>
         <div className="end-sub">Nobody has read most of them.</div>
         <div className="end-stats">
-          <div><span>Time</span><b>{duration(s.wonTime)}</b></div>
+          <div><span>Time</span><b>{duration(s.time)}</b></div>
           <div><span>Lines you wrote by hand</span><b>{fmt(s.humanLoc)}</b></div>
-          <div><span>Hand-written share</span><b>{(human * 100).toPrecision(2)}%</b></div>
+          <div><span>Hand-written share</span><b>{sharePct(human)}</b></div>
           <div><span>Bugs caught in review</span><b>{fmt(s.bugsCaught)}</b></div>
           <div><span>Bugs shipped to prod</span><b>{fmt(s.bugsShipped)}</b></div>
           <div><span>Incidents</span><b>{s.incidents}</b></div>
@@ -45,4 +46,13 @@ export function EndScreen({ onContinue }: { onContinue: () => void }) {
       </div>
     </div>
   );
+}
+
+/** Readable tiny percentages: 0.013%, not 1.3e-2%. */
+function sharePct(x: number) {
+  const p = x * 100;
+  if (p === 0) return '0%';
+  if (p < 0.0001) return '<0.0001%';
+  if (p >= 1) return `${p.toFixed(1)}%`;
+  return `${p.toFixed(Math.min(6, 1 - Math.floor(Math.log10(p))))}%`;
 }

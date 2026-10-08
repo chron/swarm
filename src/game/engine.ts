@@ -78,8 +78,18 @@ export interface State {
   era: number;
   won: boolean;
   wonTime: number;
+  final: FinalStats | null; // frozen at the moment of winning
   nextId: number;
   flags: Record<string, boolean>;
+}
+
+export interface FinalStats {
+  time: number;
+  totalLoc: number;
+  humanLoc: number;
+  bugsCaught: number;
+  bugsShipped: number;
+  incidents: number;
 }
 
 export interface Mod {
@@ -144,6 +154,7 @@ function freshState(): State {
     era: 1,
     won: false,
     wonTime: 0,
+    final: null,
     nextId: 1,
     flags: {},
   };
@@ -683,6 +694,15 @@ class Game {
     if (!s.won && s.totalLoc >= GOAL_LOC) {
       s.won = true;
       s.wonTime = s.time;
+      // count bugs still lurking in prod as shipped, too
+      s.final = {
+        time: s.time,
+        totalLoc: s.totalLoc,
+        humanLoc: s.humanLoc,
+        bugsCaught: s.bugsCaught,
+        bugsShipped: s.bugsShipped + s.backlog,
+        incidents: s.incidents,
+      };
       this.emit({ kind: 'win' });
     }
   }
