@@ -747,7 +747,7 @@ class Game {
       const ending: Ending =
         debt >= 0.5 ? 'yolo'
         : s.incidents >= 120 || shipped > s.bugsCaught ? 'firefighter'
-        : debt < 0.15 && s.bugsCaught >= 4 * shipped ? 'rigor'
+        : debt < 0.15 ? 'rigor'
         : 'balanced';
       s.final = {
         ending,

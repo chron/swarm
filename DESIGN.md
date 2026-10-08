@@ -65,8 +65,8 @@ now charges **Focus**, which amplifies your boost and decays over time.
 Ship **1,000,000,000 LOC**. The ending depends on how you got there, judged at the moment of winning:
 - **YOLO Merge**: tech debt ≥ 50% (you ripped the reviewers out and shipped straight to prod)
 - **This Is Fine**: 120+ incidents, or more bugs shipped than caught
-- **LGTM (Actually)**: tech debt under 15% and at least 4× more bugs caught than shipped
-- **Business As Usual**: everything else
+- **LGTM (Actually)**: tech debt under 15% (basically everything went through review)
+- **Business As Usual**: everything else (some review, some yolo)
 Bonus lines mention your final title and how much you typed by hand.
 
 ## Onboarding (progressive disclosure)
